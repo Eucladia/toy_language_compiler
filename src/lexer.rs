@@ -21,19 +21,6 @@ impl<'a> Lexer<'a> {
     }
   }
 
-  // Advances the cursor and returns that underlying byte
-  #[inline]
-  fn next_byte(&mut self) -> Option<u8> {
-    self.curr += 1;
-    self.src.get(self.curr).copied()
-  }
-
-  // Returns the current byte
-  #[inline]
-  fn current_byte(&self) -> Option<u8> {
-    self.src.get(self.curr).copied()
-  }
-
   /// Lexes the input source into a [`Vec<Token>`].
   ///
   /// Note: This **does not** preserve whitespace tokens! If whitespace is necessary, use [Lexer::lex_with_whitespace].
@@ -86,26 +73,23 @@ impl<'a> Lexer<'a> {
 
     let token_kind = match token_type {
       // Single character tokens
-      ByteTokenType::EQUAL => consume_and_return(self, |_| false, Equal),
-      ByteTokenType::L_PAREN => consume_and_return(self, |_| false, LeftParen),
-      ByteTokenType::R_PAREN => consume_and_return(self, |_| false, RightParen),
-      ByteTokenType::STAR => consume_and_return(self, |_| false, Star),
-      ByteTokenType::SLASH => consume_and_return(self, |_| false, Slash),
-      ByteTokenType::PLUS => consume_and_return(self, |_| false, Plus),
-      ByteTokenType::MINUS => consume_and_return(self, |_| false, Minus),
-      ByteTokenType::SEMICOLON => consume_and_return(self, |_| false, Semicolon),
+      ByteTokenType::EQUAL => self.advance_and_return(Equal),
+      ByteTokenType::L_PAREN => self.advance_and_return(LeftParen),
+      ByteTokenType::R_PAREN => self.advance_and_return(RightParen),
+      ByteTokenType::STAR => self.advance_and_return(Star),
+      ByteTokenType::SLASH => self.advance_and_return(Slash),
+      ByteTokenType::PLUS => self.advance_and_return(Plus),
+      ByteTokenType::MINUS => self.advance_and_return(Minus),
+      ByteTokenType::SEMICOLON => self.advance_and_return(Semicolon),
 
       // Multi-character tokens
-      ByteTokenType::NUMBER => consume_and_return(self, |b| b.is_ascii_digit(), Literal),
+      ByteTokenType::NUMBER => self.consume_and_return(|b| b.is_ascii_digit(), Literal),
       ByteTokenType::LETTER => {
-        consume_and_return(self, |b| b.is_ascii_alphanumeric() || b == b'_', Identifier)
+        self.consume_and_return(|b| b.is_ascii_alphanumeric() || b == b'_', Identifier)
       }
       // We'll group consecutive whitespaces and invalid tokens as one single token
-      ByteTokenType::WHITESPACE => {
-        consume_and_return(self, |b| b.is_ascii_whitespace(), Whitespace)
-      }
-      ByteTokenType::INVALID => consume_and_return(
-        self,
+      ByteTokenType::WHITESPACE => self.consume_and_return(|b| b.is_ascii_whitespace(), Whitespace),
+      ByteTokenType::INVALID => self.consume_and_return(
         |b| {
           BYTE_TOKEN_LOOKUP
             .get(b as usize)
@@ -117,16 +101,44 @@ impl<'a> Lexer<'a> {
 
     Some(Token::new(token_kind, starting_index..self.curr))
   }
-}
 
-// Consumes while the provided function is true and return the specified `TokenKind`
-fn consume_and_return<F>(lexer: &mut Lexer, func: F, ret_token: TokenKind) -> TokenKind
-where
-  F: Fn(u8) -> bool,
-{
-  while lexer.next_byte().map_or(false, &func) {}
+  // Consumes while the provided function is true and return the specified `TokenKind`
+  fn consume_and_return<F>(&mut self, func: F, ret_token: TokenKind) -> TokenKind
+  where
+    F: Fn(u8) -> bool,
+  {
+    while self.next_byte().map_or(false, &func) {}
 
-  ret_token
+    ret_token
+  }
+
+  #[inline]
+  fn advance_and_return(&mut self, ret_token: TokenKind) -> TokenKind {
+    self.advance();
+
+    ret_token
+  }
+
+  // Advances the cursor and returns that underlying byte
+  #[inline]
+  fn next_byte(&mut self) -> Option<u8> {
+    self.curr += 1;
+    self.src.get(self.curr).copied()
+  }
+
+  // Returns the current byte
+  #[inline]
+  fn current_byte(&self) -> Option<u8> {
+    self.src.get(self.curr).copied()
+  }
+
+  // Advances the source index.
+  #[inline]
+  fn advance(&mut self) {
+    if self.curr < self.src.len() {
+      self.curr += 1;
+    }
+  }
 }
 
 #[repr(u8)]
