@@ -4,6 +4,7 @@ use std::ops::Range;
 pub struct Token {
   /// The kind of token it is.
   kind: TokenKind,
+  /// The span of the token.
   range: Range<usize>,
 }
 

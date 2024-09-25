@@ -7,16 +7,18 @@ pub struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
+  /// Creates a new Lexer from a [str].
+  pub fn new(src: &'a str) -> Self {
+    Self::from_bytes(src.as_bytes())
+  }
+
+  /// Creates a new Lexer from a slice of bytes.
   pub fn from_bytes(src: &'a [u8]) -> Self {
     Self {
       src,
       curr: 0,
       is_eof: false,
     }
-  }
-
-  pub fn new(src: &'a str) -> Self {
-    Self::from_bytes(src.as_bytes())
   }
 
   // Advances the cursor and returns that underlying byte
@@ -69,14 +71,16 @@ impl<'a> Lexer<'a> {
       return None;
     }
 
+    // Add the EOF token if we're at the end of the input source
     if self.curr >= self.src.len() {
       self.is_eof = true;
 
       return Some(Token::new(Eof, self.curr..self.curr));
     }
 
-    // unwrapping is fine since we bounds check above
+    // We bounds check above, so unwrapping directly is fine
     let byte = self.current_byte().unwrap();
+    // Unwrapping is also fine here because the lookup table has all possible 256 values (size of u8)
     let token_type = BYTE_TOKEN_LOOKUP.get(byte as usize).copied().unwrap();
     let starting_index = self.curr;
 
@@ -91,7 +95,7 @@ impl<'a> Lexer<'a> {
       ByteTokenType::MINUS => consume_and_return(self, |_| false, Minus),
       ByteTokenType::SEMICOLON => consume_and_return(self, |_| false, Semicolon),
 
-      // Multi-character token
+      // Multi-character tokens
       ByteTokenType::NUMBER => consume_and_return(self, |b| b.is_ascii_digit(), Literal),
       ByteTokenType::LETTER => {
         consume_and_return(self, |b| b.is_ascii_alphanumeric() || b == b'_', Identifier)
@@ -206,7 +210,6 @@ mod tests {
 
     // Remove the `EOF` token
     tokens.pop();
-
 
     assert_eq!(tokens, expected);
   };
