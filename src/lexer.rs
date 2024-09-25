@@ -75,7 +75,7 @@ impl<'a> Lexer<'a> {
     if self.curr >= self.src.len() {
       self.is_eof = true;
 
-      return Some(Token::new(Eof, self.curr..self.curr));
+      return Some(Token::new(EndOfFile, self.curr..self.curr));
     }
 
     // We bounds check above, so unwrapping directly is fine

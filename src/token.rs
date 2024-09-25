@@ -34,7 +34,7 @@ pub enum TokenKind {
   /// The literal character `;`
   Semicolon,
   /// End of the input source.
-  Eof,
+  EndOfFile,
   /// A whitespace token.
   ///
   /// This is any one of these characters, `\n` & `\r`, `\t`, ` `, `\xOC`.
