@@ -91,9 +91,10 @@ impl<'a> Lexer<'a> {
       ByteTokenType::WHITESPACE => self.consume_and_return(|b| b.is_ascii_whitespace(), Whitespace),
       ByteTokenType::INVALID => self.consume_and_return(
         |b| {
-          BYTE_TOKEN_LOOKUP
-            .get(b as usize)
-            .map_or(true, |b| *b == ByteTokenType::INVALID)
+          matches!(
+            BYTE_TOKEN_LOOKUP.get(b as usize).unwrap(),
+            ByteTokenType::INVALID
+          )
         },
         Unknown,
       ),
