@@ -92,8 +92,8 @@ impl<'a> Lexer<'a> {
       ByteTokenType::INVALID => self.consume_and_return(
         |b| {
           matches!(
-            BYTE_TOKEN_LOOKUP.get(b as usize).unwrap(),
-            ByteTokenType::INVALID
+            BYTE_TOKEN_LOOKUP.get(b as usize),
+            Some(ByteTokenType::INVALID)
           )
         },
         Unknown,
@@ -217,16 +217,35 @@ mod tests {
 
   macro_rules! are_tokens_equal {
   ($src:literal, $($token:tt),*) => {
-    let mut lexer = Lexer::from_bytes(include_bytes!(concat!("../sample_input/", $src, ".txt")));
-    let mut tokens = lexer.lex().into_iter().map(|tok| tok.kind()).collect::<Vec<_>>();
+    let tokens = get_tokens!(include_str!(concat!("../sample_input/", $src, ".txt")));
     let expected = vec![$(TokenKind::$token),*];
 
-    // Remove the `EOF` token
-    tokens.pop();
-
     assert_eq!(tokens, expected);
-  };
+  }
 }
+
+  macro_rules! get_tokens {
+    ($src:expr) => {{
+      let mut lexer = Lexer::new($src);
+      let mut tokens = lexer
+        .lex()
+        .into_iter()
+        .map(|tok| tok.kind())
+        .collect::<Vec<_>>();
+
+      // Remove the `EOF` token
+      tokens.pop();
+
+      tokens
+    }};
+  }
+
+  #[test]
+  fn invalid_tokens() {
+    let tokens = get_tokens!("____`````><>.,.`,.`");
+
+    assert_eq!(tokens, vec![TokenKind::Unknown]);
+  }
 
   #[test]
   fn one() {
