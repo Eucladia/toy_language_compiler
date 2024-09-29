@@ -41,15 +41,18 @@ enum TokenKind {
   Unknown,
 }
 ```
-As you can see, I chose to ***not*** include the actual lexeme of the token, but rather the range. This is a more efficient design, that results in less heap allocations.
+As you can see, I chose to ***not*** include the actual lexeme of the token, but rather the range of the token from the source file. This is a more efficient design, that results in less heap allocations.
 
-I want the lexer's role to be minimal, which is also why I **don't** parse numbers here. The job of resolving and parsing various things will be done in the parser when we're making the AST.
+I want the lexer's role to be minimal, which is also why I **don't** parse numbers here. The job of resolving and parsing various things will be done later in the pipeline.
 
 ### Parser
 TODO: Fill this out when here
 
 ### Syntax Checker
 TODO: Fill this out when here
+
+### Resolver
+The resolver will take care of semantic analysis. This includes doing things like making sure variables are initialized before accessing them.
 
 ### Evaluator (Interpreter)
 Since the language is really simple and it only consists of basic mathemetical operations on integers, we can just convert the infix expression to a postfix one. We can then evaluate that easily since postfix expressions remove ambiguity and the need for parenthesis!
