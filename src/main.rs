@@ -11,14 +11,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   args.next();
 
   let bytes = match args.next() {
-    Some(file) => fs::read(file)?,
+    Some(file) => fs::read_to_string(file)?,
     None => {
       println!("expected a file to be passed.");
       std::process::exit(1)
     }
   };
 
-  let mut lexer = Lexer::from_bytes(&bytes);
+  let mut lexer = Lexer::new(&bytes);
   let tokens = lexer.lex();
 
   println!("The lexed tokens:\n{:#?}", tokens);

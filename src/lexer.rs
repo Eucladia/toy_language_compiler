@@ -28,7 +28,7 @@ impl<'a> Lexer<'a> {
     let mut tokens = Vec::new();
 
     while let Some(token) = self.lex_token() {
-      if token.kind() != TokenKind::Whitespace {
+      if !matches!(token.kind(), TokenKind::Whitespace) {
         tokens.push(token);
       }
     }
