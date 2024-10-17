@@ -33,14 +33,14 @@ pub enum TokenKind {
   Plus,
   /// The literal character `;`
   Semicolon,
-  /// End of the input source.
-  EndOfFile,
   /// A whitespace token.
   ///
   /// This is any one of these characters, `\n` & `\r`, `\t`, ` `, `\xOC`.
   Whitespace,
   /// Unrecognized tokens.
   Unknown,
+  /// End of the input source.
+  EndOfFile,
 }
 
 impl Token {
@@ -58,7 +58,7 @@ impl Token {
   ///
   /// The lower bound is inclusive, the upper bound is exclusive.
   #[allow(dead_code)]
-  pub fn range(&self) -> &Range<usize> {
-    &self.range
+  pub fn range(&self) -> Range<usize> {
+    self.range.clone()
   }
 }
