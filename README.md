@@ -21,6 +21,8 @@ struct Token {
   kind: TokenKind,
   // The span of the token.
   range: std::ops::Range<usize>,
+  // The line that the token is on.
+  line: usize
 }
 ```
 where `TokenKind` is
@@ -32,7 +34,6 @@ enum TokenKind {
   LeftParen,
   RightParen,
   Star,
-  Slash,
   Minus,
   Plus,
   Semicolon,
@@ -46,13 +47,7 @@ As you can see, I chose to ***not*** include the actual lexeme of the token, but
 I want the lexer's role to be minimal, which is also why I **don't** parse numbers here. The job of resolving and parsing various things will be done later in the pipeline.
 
 ### Parser
-TODO: Fill this out when here
-
-### Syntax Checker
-TODO: Fill this out when here
-
-### Resolver
-The resolver will take care of semantic analysis. This includes doing things like making sure variables are initialized before accessing them.
+The parser uses a top-down recursive descent approach.
 
 ### Evaluator (Interpreter)
 Since the language is really simple and it only consists of basic mathemetical operations on integers, we can just convert the infix expression to a postfix one. We can then evaluate that easily since postfix expressions remove ambiguity and the need for parenthesis!

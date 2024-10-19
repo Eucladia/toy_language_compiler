@@ -4,6 +4,7 @@ pub struct Lexer<'a> {
   src: &'a [u8],
   curr: usize,
   is_eof: bool,
+  line_number: usize,
 }
 
 impl<'a> Lexer<'a> {
@@ -18,6 +19,7 @@ impl<'a> Lexer<'a> {
       src,
       curr: 0,
       is_eof: false,
+      line_number: 1,
     }
   }
 
@@ -62,7 +64,11 @@ impl<'a> Lexer<'a> {
     if self.curr >= self.src.len() {
       self.is_eof = true;
 
-      return Some(Token::new(EndOfFile, self.curr..self.curr));
+      return Some(Token::new(
+        EndOfFile,
+        self.curr..self.curr,
+        self.line_number,
+      ));
     }
 
     // We bounds check above, so unwrapping directly is fine
@@ -70,6 +76,7 @@ impl<'a> Lexer<'a> {
     // Unwrapping is also fine here because the lookup table has all possible 256 values (size of u8)
     let token_type = BYTE_TOKEN_LOOKUP.get(byte as usize).copied().unwrap();
     let starting_index = self.curr;
+    let line_number = self.line_number;
 
     let token_kind = match token_type {
       // Single character tokens
@@ -77,30 +84,28 @@ impl<'a> Lexer<'a> {
       ByteTokenType::L_PAREN => self.advance_and_return(LeftParen),
       ByteTokenType::R_PAREN => self.advance_and_return(RightParen),
       ByteTokenType::STAR => self.advance_and_return(Star),
-      ByteTokenType::SLASH => self.advance_and_return(Slash),
       ByteTokenType::PLUS => self.advance_and_return(Plus),
       ByteTokenType::MINUS => self.advance_and_return(Minus),
       ByteTokenType::SEMICOLON => self.advance_and_return(Semicolon),
+      ByteTokenType::LINEBREAK => {
+        self.line_number += 1;
+        self.advance_and_return(Whitespace)
+      }
+      ByteTokenType::WHITESPACE => self.advance_and_return(Whitespace),
+      ByteTokenType::INVALID => self.advance_and_return(Unknown),
 
       // Multi-character tokens
       ByteTokenType::NUMBER => self.consume_and_return(|b| b.is_ascii_digit(), Literal),
       ByteTokenType::LETTER => {
         self.consume_and_return(|b| b.is_ascii_alphanumeric() || b == b'_', Identifier)
       }
-      // We'll group consecutive whitespaces and invalid tokens as one single token
-      ByteTokenType::WHITESPACE => self.consume_and_return(|b| b.is_ascii_whitespace(), Whitespace),
-      ByteTokenType::INVALID => self.consume_and_return(
-        |b| {
-          matches!(
-            BYTE_TOKEN_LOOKUP.get(b as usize),
-            Some(ByteTokenType::INVALID)
-          )
-        },
-        Unknown,
-      ),
     };
 
-    Some(Token::new(token_kind, starting_index..self.curr))
+    Some(Token::new(
+      token_kind,
+      starting_index..self.curr,
+      line_number,
+    ))
   }
 
   // Consumes while the provided function is true and return the specified `TokenKind`
@@ -146,17 +151,17 @@ impl<'a> Lexer<'a> {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[allow(clippy::upper_case_acronyms, non_camel_case_types)]
 enum ByteTokenType {
-  WHITESPACE,
-  SEMICOLON,
-  EQUAL,
   NUMBER,
   LETTER,
+  SEMICOLON,
+  EQUAL,
   L_PAREN,
   R_PAREN,
   STAR,
-  SLASH,
   PLUS,
   MINUS,
+  LINEBREAK,
+  WHITESPACE,
   INVALID,
 }
 
@@ -168,14 +173,13 @@ const BYTE_TOKEN_LOOKUP: [ByteTokenType; 256] = {
 
   // Whitespace characters, taken from `u8::is_ascii_whitespace`
   default[b'\t' as usize] = ByteTokenType::WHITESPACE;
-  default[b'\n' as usize] = ByteTokenType::WHITESPACE;
+  default[b'\n' as usize] = ByteTokenType::LINEBREAK;
   default[b'\x0C' as usize] = ByteTokenType::WHITESPACE;
-  default[b'\r' as usize] = ByteTokenType::WHITESPACE;
+  default[b'\r' as usize] = ByteTokenType::LINEBREAK;
   default[b' ' as usize] = ByteTokenType::WHITESPACE;
   // Semicolon
   default[b';' as usize] = ByteTokenType::SEMICOLON;
   // Arithmetic
-  default[b'/' as usize] = ByteTokenType::SLASH;
   default[b'*' as usize] = ByteTokenType::STAR;
   default[b'-' as usize] = ByteTokenType::MINUS;
   default[b'+' as usize] = ByteTokenType::PLUS;

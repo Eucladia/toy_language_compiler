@@ -6,6 +6,8 @@ pub struct Token {
   kind: TokenKind,
   /// The span of the token.
   range: Range<usize>,
+  /// The line of the token.
+  line_number: usize,
 }
 
 #[repr(u8)]
@@ -25,8 +27,6 @@ pub enum TokenKind {
   RightParen,
   /// The literal character `*`.
   Star,
-  /// The literal character `/`.
-  Slash,
   /// The literal character `-`
   Minus,
   /// The literal character `+`
@@ -45,8 +45,12 @@ pub enum TokenKind {
 
 impl Token {
   /// Creates a new [Token]
-  pub fn new(kind: TokenKind, range: Range<usize>) -> Self {
-    Token { kind, range }
+  pub fn new(kind: TokenKind, range: Range<usize>, line: usize) -> Self {
+    Token {
+      kind,
+      range,
+      line_number: line,
+    }
   }
 
   /// Returns the [TokenKind] of this token.
@@ -54,11 +58,19 @@ impl Token {
     self.kind
   }
 
-  /// Returns the range of this token.
-  ///
-  /// The lower bound is inclusive, the upper bound is exclusive.
-  #[allow(dead_code)]
+  /// Returns the range, exclusive on the upper bound, of this token.
   pub fn range(&self) -> Range<usize> {
     self.range.clone()
+  }
+
+  /// The line of the [Token]
+  pub fn line(&self) -> usize {
+    self.line_number
+  }
+}
+
+impl std::fmt::Display for TokenKind {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{:?}", self)
   }
 }
