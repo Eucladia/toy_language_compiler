@@ -135,14 +135,20 @@ impl<'a> Parser<'a> {
     }
 
     // Parse the expression
-    let expr = match self.parse_expr() {
-      Ok(node) => node,
+    let expr_node = match self.parse_expr() {
+      Ok(node) => Some(node),
       Err(e) => {
         errors.push(e);
 
-        // TODO: Better error recovery for this
-        // Unrecoverable if we got an error while parsing expressions
-        return;
+        // Try to recover from the lack of expression
+        if !matches!(
+          self.lexer.current_token().map(Token::kind),
+          Some(TokenKind::EndOfFile)
+        ) {
+          self.lexer.token_pos -= 1;
+        }
+
+        None
       }
     };
 
@@ -183,7 +189,7 @@ impl<'a> Parser<'a> {
       }
     }
 
-    if let Some(ident) = identifier_node {
+    if let (Some(ident), Some(expr)) = (identifier_node, expr_node) {
       assignments.push(Node::Assignment(Box::new(ident), Box::new(expr)));
     }
 

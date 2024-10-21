@@ -1,4 +1,5 @@
 bbb = 6;
 aaa =
 ;
-ccc =
+ccc = ;
+foo = 6
