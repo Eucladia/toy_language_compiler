@@ -1,3 +1,5 @@
+use std::num::{IntErrorKind, ParseIntError};
+
 use crate::{
   error::DiagnosticError,
   lexer::Lexer,
@@ -140,10 +142,11 @@ impl<'a> Parser<'a> {
       Err(e) => {
         errors.push(e);
 
-        // Try to recover from the lack of expression
+        // Try to recover from the lack of expression, except for cases where the
+        // current token is `EndOfFile` or `Semicolon`
         if !matches!(
           self.lexer.current_token().map(Token::kind),
-          Some(TokenKind::EndOfFile)
+          Some(TokenKind::EndOfFile | TokenKind::Semicolon)
         ) {
           self.lexer.token_pos -= 1;
         }
@@ -305,17 +308,36 @@ impl<'a> Parser<'a> {
               "the integer, `{}`, is invalid. literals must be either 0 or non-zero digits.",
               num_str
             ),
-            token_info.line,
-            token_info.column,
+            x.line(),
+            // Point to the start of the invalid integer
+            x.range().start + 1 - linebreak_index(self.src, x.range()),
           ));
         }
 
-        Ok(Node::Literal(LiteralNode {
-          // Unwrapping is fine here because we know that it is a fully valid integer by now
-          number: num_str.parse().unwrap(),
-          range: x.range(),
-          line: x.line(),
-        }))
+        match num_str.parse() {
+          Ok(num) => Ok(Node::Literal(LiteralNode {
+            number: num,
+            range: x.range(),
+            line: x.line(),
+          })),
+          Err(e) => {
+            match e.kind() {
+              IntErrorKind::NegOverflow | IntErrorKind::PosOverflow => Err(DiagnosticError::new(
+                format!(
+                  "the integer,`{}`, is invalid. integers must be in the range [{}, {}].",
+                  num_str,
+                  isize::MIN,
+                  isize::MAX
+                ),
+                x.line(),
+                // Point to the start of the invalid integer
+                x.range().start + 1 - linebreak_index(self.src, x.range()),
+              )),
+              // Any other cases shouldn't be readable
+              _ => unreachable!("invalid integer"),
+            }
+          }
+        }
       }
 
       Some(x) if matches!(x.kind(), TokenKind::Identifier) => {
