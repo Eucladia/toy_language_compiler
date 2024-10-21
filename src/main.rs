@@ -3,6 +3,7 @@ mod lexer;
 mod node;
 mod parser;
 mod token;
+mod util;
 
 use error::DiagnosticError;
 use lexer::Lexer;

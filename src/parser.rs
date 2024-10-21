@@ -3,21 +3,19 @@ use crate::{
   lexer::Lexer,
   node::{IdentifierNode, LiteralNode, Node, Operator},
   token::{Token, TokenKind},
-  token_matches,
+  util::{linebreak_index, token_info, TokenInfo},
 };
 
 #[derive(Debug)]
 pub struct Parser<'a> {
   src: &'a str,
-  tokens: Vec<Token>,
-  token_pos: usize,
+  lexer: LexerManager,
 }
 
-#[derive(Debug, Clone)]
-pub struct TokenInfo<'a> {
-  pub line: usize,
-  pub column: usize,
-  pub literal: &'a str,
+#[derive(Debug)]
+struct LexerManager {
+  tokens: Vec<Token>,
+  token_pos: usize,
 }
 
 impl<'a> Parser<'a> {
@@ -30,8 +28,10 @@ impl<'a> Parser<'a> {
   pub fn from_tokens(src: &'a str, tokens: Vec<Token>) -> Self {
     Self {
       src,
-      tokens,
-      token_pos: 0,
+      lexer: LexerManager {
+        tokens,
+        token_pos: 0,
+      },
     }
   }
 
@@ -51,65 +51,151 @@ impl<'a> Parser<'a> {
   fn parse_program(&mut self, errors: &mut Vec<DiagnosticError>) -> Node {
     let mut assignments = Vec::new();
 
-    while let Some(tok) = self.next_token() {
-      if matches!(tok.kind(), TokenKind::EndOfFile) {
-        break;
-      }
+    self.parse_assignment(&mut assignments, errors);
 
-      match self.parse_assignment(&tok) {
-        Ok(res) => assignments.push(res),
-        Err(err) => errors.push(err),
-      }
-    }
+    // The last token should be an EndOfFile one
+    assert_eq!(
+      self.lexer.current_token().map(Token::kind),
+      Some(TokenKind::EndOfFile)
+    );
 
     Node::Program(assignments)
   }
 
-  fn parse_assignment(&mut self, curr_token: &Token) -> Result<Node, DiagnosticError> {
-    // Handle the identifier first
-    let ident = token_matches!(
-      Some(curr_token),
-      Identifier,
-      Self::token_info(self.src, curr_token)
-    )
-    .map(|tok| {
-      Node::Identifier(IdentifierNode {
-        literal: self.src.get(tok.range()).unwrap().to_string(),
-        range: curr_token.range(),
-        line: curr_token.line(),
-      })
-    })?;
+  fn parse_assignment(&mut self, assignments: &mut Vec<Node>, errors: &mut Vec<DiagnosticError>) {
+    let ident_token = self.lexer.current_token().cloned();
 
-    // We expect an equal sign
-    token_matches!(
-      self.next_token(),
-      Equal,
-      Self::token_info(self.src, self.previous_token().unwrap())
-    )?;
-
-    // Parse the expression
-    let expr = self.parse_expr()?;
-
-    // We expect a semicolon
-    match token_matches!(
-      self.current_token(),
-      Semicolon,
-      Self::token_info(self.src, self.previous_token().unwrap())
-    ) {
-      // Advance the cursor since we saw a semicolon
-      Ok(_) => self.advance(),
-      Err(err) => return Err(err),
+    // No more assignments to parse.
+    if ident_token.is_none()
+      || matches!(
+        ident_token.as_ref().map(Token::kind),
+        Some(TokenKind::EndOfFile)
+      )
+    {
+      return;
     }
 
-    Ok(Node::Assignment(Box::new(ident), Box::new(expr)))
+    let ident_token = ident_token.unwrap();
+    let ident_token_info = token_info(self.src, &ident_token);
+
+    let identifier_node = if matches!(ident_token.kind(), TokenKind::Identifier) {
+      // Only advance if we see a valid identifier, for better error diagonstics
+      self.lexer.advance();
+
+      Some(Node::Identifier(IdentifierNode {
+        literal: ident_token_info.literal.into(),
+        range: ident_token.range(),
+        line: ident_token.line(),
+      }))
+    } else {
+      errors.push(DiagnosticError::new(
+        format!(
+          "expected an `Identifier`, but found `{}` ({})",
+          &ident_token_info.literal,
+          ident_token.kind()
+        ),
+        ident_token_info.line,
+        ident_token_info.column,
+      ));
+
+      None
+    };
+
+    // Parse the equal sign
+    match self.lexer.current_token() {
+      Some(tok) if matches!(tok.kind(), TokenKind::Equal) => {
+        self.lexer.advance();
+      }
+      Some(other) if !matches!(other.kind(), TokenKind::EndOfFile) => {
+        let curr_info = token_info(self.src, other);
+
+        errors.push(DiagnosticError::new(
+          format!(
+            "expected an `Equal` token, but found `{}` ({}).",
+            curr_info.literal,
+            other.kind()
+          ),
+          ident_token_info.line,
+          // If the identifier token and equal token aren't on the same line, then the column is
+          // the end of the identifier + 1
+          if other.line() == ident_token.line() {
+            ident_token.range().end
+          } else {
+            ident_token.range().end + 1
+          } - linebreak_index(self.src, ident_token.range()),
+        ));
+      }
+      _ => {
+        errors.push(DiagnosticError::new(
+          "expected an `Equal` token.".to_string(),
+          ident_token_info.line,
+          ident_token.range().end - linebreak_index(self.src, ident_token.range()),
+        ));
+      }
+    }
+
+    // Parse the expression
+    let expr = match self.parse_expr() {
+      Ok(node) => node,
+      Err(e) => {
+        errors.push(e);
+
+        // TODO: Better error recovery for this
+        // Unrecoverable if we got an error while parsing expressions
+        return;
+      }
+    };
+
+    let expr_token = self.lexer.previous_token().cloned().unwrap();
+    let expr_token_info = token_info(self.src, &expr_token);
+
+    // We expect a semicolon
+    match self.lexer.current_token().cloned() {
+      Some(tok) if matches!(tok.kind(), TokenKind::Semicolon) => {
+        self.lexer.advance();
+      }
+      Some(tok) => {
+        errors.push(DiagnosticError::new(
+          format!(
+            "expected a `Semicolon` after `{}`, but found `{}` ({}).",
+            expr_token_info.literal,
+            self.src.get(tok.range()).unwrap(),
+            tok.kind()
+          ),
+          expr_token_info.line,
+          // The column should be after the expression
+          expr_token.range().end + 1 - linebreak_index(self.src, expr_token.range()),
+        ));
+      }
+      None => {
+        errors.push(DiagnosticError::new(
+          format!(
+            "expected `{}` after `{}`.",
+            TokenKind::Semicolon,
+            expr_token_info.literal,
+          ),
+          expr_token_info.line,
+          // The column should be after the expression
+          expr_token.range().end + 1 - linebreak_index(self.src, expr_token.range()),
+        ));
+
+        return;
+      }
+    }
+
+    if let Some(ident) = identifier_node {
+      assignments.push(Node::Assignment(Box::new(ident), Box::new(expr)));
+    }
+
+    self.parse_assignment(assignments, errors);
   }
 
   fn parse_expr(&mut self) -> Result<Node, DiagnosticError> {
     fn parse_expr_inner(parser: &mut Parser, lhs_term: Node) -> Result<Node, DiagnosticError> {
-      match parser.current_token().map(Token::kind) {
+      match parser.lexer.current_token().map(Token::kind) {
         kind if matches!(kind, Some(TokenKind::Plus | TokenKind::Minus)) => {
           // Advance since we saw `+`` or `-`
-          parser.advance();
+          parser.lexer.advance();
 
           let rhs_term = parser.parse_term()?;
 
@@ -139,10 +225,10 @@ impl<'a> Parser<'a> {
 
   fn parse_term(&mut self) -> Result<Node, DiagnosticError> {
     fn parse_term_inner(parser: &mut Parser, lhs_fact: Node) -> Result<Node, DiagnosticError> {
-      match parser.current_token().map(Token::kind) {
+      match parser.lexer.current_token().map(Token::kind) {
         Some(TokenKind::Star) => {
           // Advance token position since we saw `*`
-          parser.advance();
+          parser.lexer.advance();
 
           let rhs_fact = parser.parse_fact()?;
 
@@ -163,65 +249,123 @@ impl<'a> Parser<'a> {
   }
 
   fn parse_fact(&mut self) -> Result<Node, DiagnosticError> {
-    let fact_token = self.next_token();
-    let token = token_matches!(
-      &fact_token,
-      Literal | Identifier | LeftParen | Minus | Plus,
-      Self::token_info(self.src, fact_token.as_ref().unwrap())
-    )?;
+    let fact_token = self.lexer.current_token().cloned();
 
-    match token.kind() {
-      // Numeric literals
-      TokenKind::Literal => {
-        let num_str = self.src.get(token.range()).unwrap();
+    match fact_token {
+      Some(x)
+        if !matches!(
+          x.kind(),
+          TokenKind::Literal
+            | TokenKind::Identifier
+            | TokenKind::LeftParen
+            | TokenKind::Minus
+            | TokenKind::Plus
+        ) =>
+      {
+        let eof = matches!(x.kind(), TokenKind::EndOfFile);
+
+        // Only advance if we're not at the end
+        if !eof {
+          self.lexer.advance();
+        }
+
+        let token_info = token_info(self.src, &x);
+
+        Err(DiagnosticError::new(
+          format!(
+            "expected either `+`, `-`, `(`, an `Identifier`, or a `Literal`, but found `{}` ({})",
+            &token_info.literal,
+            x.kind()
+          ),
+          token_info.line,
+          // If we're at the end, then the fact is expected at the next column
+          if eof {
+            token_info.column + 1
+          } else {
+            token_info.column
+          },
+        ))
+      }
+
+      Some(x) if matches!(x.kind(), TokenKind::Literal) => {
+        self.lexer.advance();
+
+        let token_info = token_info(self.src, &x);
+        let num_str = token_info.literal;
+
         if num_str.starts_with('0') && num_str.len() > 1 {
-          // Invalid integer errors are recoverable, so advance the index.
-          self.advance();
-
           return Err(DiagnosticError::new(
             format!(
               "the integer, `{}`, is invalid. literals must be either 0 or non-zero digits.",
               num_str
             ),
-            token.line(),
-            token.range().start + 1 - Self::token_linebreak_index(self.src, token),
+            token_info.line,
+            token_info.column,
           ));
         }
 
         Ok(Node::Literal(LiteralNode {
-          number: num_str.parse().map_err(|_| {
-            let token_info = Self::token_info(self.src, token);
-
-            DiagnosticError::new(
-              format!("invalid integer, `{}`.", num_str),
-              token_info.line,
-              token_info.column,
-            )
-          })?,
-          range: token.range(),
-          line: token.line(),
+          // Unwrapping is fine here because we know that it is a fully valid integer by now
+          number: num_str.parse().unwrap(),
+          range: x.range(),
+          line: x.line(),
         }))
       }
-      // Identifiers (variables for this language)
-      TokenKind::Identifier => Ok(Node::Identifier(IdentifierNode {
-        literal: self.src.get(token.range()).unwrap().to_string(),
-        line: token.line(),
-        range: token.range(),
-      })),
-      // Left parenthesis
-      TokenKind::LeftParen => {
+
+      Some(x) if matches!(x.kind(), TokenKind::Identifier) => {
+        self.lexer.advance();
+
+        Ok(Node::Identifier(IdentifierNode {
+          literal: self.src.get(x.range()).unwrap().to_string(),
+          line: x.line(),
+          range: x.range(),
+        }))
+      }
+
+      Some(x) if matches!(x.kind(), TokenKind::LeftParen) => {
+        self.lexer.advance();
+
         let expr = self.parse_expr()?;
 
-        token_matches!(
-          self.next_token(),
-          RightParen,
-          Self::token_info(self.src, self.previous_token().unwrap())
-        )?;
+        match self.lexer.current_token().cloned() {
+          Some(x) if matches!(x.kind(), TokenKind::RightParen) => {
+            self.lexer.advance();
+          }
+          Some(x) => {
+            self.lexer.advance();
+
+            let expr_token = self.lexer.tokens.get(self.lexer.token_pos - 1).unwrap();
+            let expr_token_info = token_info(self.src, expr_token);
+            let curr_token_info = token_info(self.src, &x);
+
+            return Err(DiagnosticError::new(
+              format!(
+                "expected a `)` after `{}`, but found `{}`",
+                expr_token_info.literal, curr_token_info.literal
+              ),
+              curr_token_info.line,
+              curr_token_info.column,
+            ));
+          }
+          None => {
+            let expr_token = self.lexer.tokens.get(self.lexer.token_pos - 1).unwrap();
+            let expr_token_info = token_info(self.src, expr_token);
+
+            return Err(DiagnosticError::new(
+              format!("expected a `)` after `{}`.", expr_token_info.literal),
+              x.line(),
+              expr_token.range().end - linebreak_index(self.src, expr_token.range()),
+            ));
+          }
+        }
 
         Ok(Node::Fact(Box::new(expr)))
       }
+
       // Unary operations
-      TokenKind::Minus => {
+      Some(x) if matches!(x.kind(), TokenKind::Minus) => {
+        self.lexer.advance();
+
         let fact = self.parse_fact()?;
 
         Ok(Node::Fact(Box::new(Node::UnaryOperator(
@@ -229,7 +373,9 @@ impl<'a> Parser<'a> {
           Box::new(fact),
         ))))
       }
-      TokenKind::Plus => {
+      Some(x) if matches!(x.kind(), TokenKind::Plus) => {
+        self.lexer.advance();
+
         let fact = self.parse_fact()?;
 
         Ok(Node::Fact(Box::new(Node::UnaryOperator(
@@ -237,34 +383,54 @@ impl<'a> Parser<'a> {
           Box::new(fact),
         ))))
       }
-      // Unexpected token
-      other => {
-        let token_info = Self::token_info(self.src, token);
+
+      Some(other) => {
+        self.lexer.advance();
+
+        let token_info = token_info(self.src, &other);
 
         Err(DiagnosticError::new(
           format!(
             "unexpected `{}` ({}) found when parsing fact.",
-            other, token_info.literal,
+            other.kind(),
+            token_info.literal,
           ),
           token_info.line,
           token_info.column,
         ))
       }
+
+      None => {
+        let sec_last = self.lexer.tokens.get(self.lexer.token_pos - 2).unwrap();
+        let sec_last_info = token_info(self.src, sec_last);
+
+        Err(DiagnosticError::new(
+          format!(
+            "expected either `+`, `-`, `(`, an `Identifier`, or a `Literal` after `{}`",
+            &sec_last_info.literal
+          ),
+          sec_last.line(),
+          sec_last_info.column + 1,
+        ))
+      }
     }
   }
+}
 
-  /// Returns the current [Token] and advances the position.
-  pub fn next_token(&mut self) -> Option<Token> {
-    let tok = self.tokens.get(self.token_pos).cloned();
-
-    self.token_pos += 1;
-
-    tok
+impl LexerManager {
+  /// Returns the next [Token].
+  pub fn peek_token(&self) -> Option<&Token> {
+    self.tokens.get(self.token_pos + 1)
   }
 
   /// Returns the current [Token]
   pub fn current_token(&self) -> Option<&Token> {
     self.tokens.get(self.token_pos)
+  }
+
+  /// Returns the previous [Token].
+  pub fn previous_token(&self) -> Option<&Token> {
+    self.tokens.get(self.token_pos - 1)
   }
 
   /// Advances the internal position of the current [Token].
@@ -273,59 +439,4 @@ impl<'a> Parser<'a> {
       self.token_pos += 1;
     }
   }
-
-  /// Returns the previous [Token].
-  pub fn previous_token(&self) -> Option<&Token> {
-    self.tokens.get(self.token_pos - 1)
-  }
-
-  /// Returns information about this [Token].
-  pub fn token_info<'b>(src: &'b str, token: &Token) -> TokenInfo<'b> {
-    TokenInfo {
-      column: token.range().end + 1 - Self::token_linebreak_index(src, token),
-      line: token.line(),
-      literal: src.get(token.range()).unwrap(),
-    }
-  }
-
-  pub fn token_linebreak_index(src: &str, token: &Token) -> usize {
-    src[..token.range().start]
-      .rfind('\n')
-      .map(|i| i + 1)
-      .unwrap_or(0)
-  }
-}
-
-#[macro_export]
-macro_rules! token_matches {
-  ($token:expr, $expected:pat, $token_info:expr) => {{
-    use $crate::error::DiagnosticError;
-    use $crate::token::TokenKind::*;
-
-    let tok = match $token {
-      Some(t) => Ok(t),
-      None => Err(DiagnosticError::new(
-        format!(
-          "expected `{}`, but got end of input.",
-          stringify!($expected)
-        ),
-        $token_info.line,
-        $token_info.column,
-      )),
-    }?;
-
-    match tok.kind() {
-      x if matches!(x, $expected) => Ok(tok),
-      other => Err(DiagnosticError::new(
-        format!(
-          "expected `{}` after `{}`, but got `{}`.",
-          stringify!($expected),
-          $token_info.literal,
-          other
-        ),
-        $token_info.line,
-        $token_info.column,
-      )),
-    }
-  }};
 }
