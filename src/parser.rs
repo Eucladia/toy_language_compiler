@@ -22,6 +22,7 @@ struct LexerManager {
 
 impl<'a> Parser<'a> {
   /// Creates a new [Parser] from the source string.
+  #[allow(dead_code)]
   pub fn new(src: &'a str) -> Self {
     Self::from_tokens(src, Lexer::new(src).lex())
   }
@@ -92,7 +93,7 @@ impl<'a> Parser<'a> {
     } else {
       errors.push(DiagnosticError::new(
         format!(
-          "expected an `Identifier`, but found `{}` ({})",
+          "Expected an `Identifier`, but found `{}` ({})",
           &ident_token_info.literal,
           ident_token.kind()
         ),
@@ -113,7 +114,7 @@ impl<'a> Parser<'a> {
 
         errors.push(DiagnosticError::new(
           format!(
-            "expected an `Equal` token, but found `{}` ({}).",
+            "Expected an `Equal` token, but found `{}` ({}).",
             curr_info.literal,
             other.kind()
           ),
@@ -129,7 +130,7 @@ impl<'a> Parser<'a> {
       }
       _ => {
         errors.push(DiagnosticError::new(
-          "expected an `Equal` token.".to_string(),
+          "Expected an `Equal` token.".to_string(),
           ident_token_info.line,
           ident_token.range().end - linebreak_index(self.src, ident_token.range()),
         ));
@@ -166,7 +167,7 @@ impl<'a> Parser<'a> {
       Some(tok) => {
         errors.push(DiagnosticError::new(
           format!(
-            "expected a `Semicolon` after `{}`, but found `{}` ({}).",
+            "Expected a `Semicolon` after `{}`, but found `{}` ({}).",
             expr_token_info.literal,
             self.src.get(tok.range()).unwrap(),
             tok.kind()
@@ -179,7 +180,7 @@ impl<'a> Parser<'a> {
       None => {
         errors.push(DiagnosticError::new(
           format!(
-            "expected `{}` after `{}`.",
+            "Expected `{}` after `{}`.",
             TokenKind::Semicolon,
             expr_token_info.literal,
           ),
@@ -284,7 +285,7 @@ impl<'a> Parser<'a> {
 
         Err(DiagnosticError::new(
           format!(
-            "expected either `+`, `-`, `(`, an `Identifier`, or a `Literal`, but found `{}` ({})",
+            "Expected either `+`, `-`, `(`, an `Identifier`, or a `Literal`, but found `{}` ({})",
             &token_info.literal,
             x.kind()
           ),
@@ -307,7 +308,7 @@ impl<'a> Parser<'a> {
         if num_str.starts_with('0') && num_str.len() > 1 {
           return Err(DiagnosticError::new(
             format!(
-              "the integer, `{}`, is invalid. literals must be either 0 or non-zero digits.",
+              "The integer, `{}`, is invalid. literals must be either 0 or non-zero digits.",
               num_str
             ),
             x.line(),
@@ -317,16 +318,12 @@ impl<'a> Parser<'a> {
         }
 
         match num_str.parse() {
-          Ok(num) => Ok(Node::Literal(LiteralNode {
-            number: num,
-            range: x.range(),
-            line: x.line(),
-          })),
+          Ok(num) => Ok(Node::Literal(LiteralNode { value: num })),
           Err(e) => {
             match e.kind() {
               IntErrorKind::NegOverflow | IntErrorKind::PosOverflow => Err(DiagnosticError::new(
                 format!(
-                  "the integer,`{}`, is invalid. integers must be in the range [{}, {}].",
+                  "The integer,`{}`, is invalid. integers must be in the range [{}, {}].",
                   num_str,
                   isize::MIN,
                   isize::MAX
@@ -335,7 +332,7 @@ impl<'a> Parser<'a> {
                 // Point to the start of the invalid integer
                 x.range().start + 1 - linebreak_index(self.src, x.range()),
               )),
-              // Any other cases shouldn't be readable
+              // Any other cases shouldn't be reachable
               _ => unreachable!("invalid integer"),
             }
           }
@@ -370,7 +367,7 @@ impl<'a> Parser<'a> {
 
             return Err(DiagnosticError::new(
               format!(
-                "expected a `)` after `{}`, but found `{}`",
+                "Expected a `)` after `{}`, but found `{}`",
                 expr_token_info.literal, curr_token_info.literal
               ),
               curr_token_info.line,
@@ -382,7 +379,7 @@ impl<'a> Parser<'a> {
             let expr_token_info = token_info(self.src, expr_token);
 
             return Err(DiagnosticError::new(
-              format!("expected a `)` after `{}`.", expr_token_info.literal),
+              format!("Expected a `)` after `{}`.", expr_token_info.literal),
               x.line(),
               expr_token.range().end - linebreak_index(self.src, expr_token.range()),
             ));
@@ -421,7 +418,7 @@ impl<'a> Parser<'a> {
 
         Err(DiagnosticError::new(
           format!(
-            "unexpected `{}` ({}) found when parsing fact.",
+            "Unexpected `{}` ({}) found when parsing fact.",
             other.kind(),
             token_info.literal,
           ),
@@ -436,7 +433,7 @@ impl<'a> Parser<'a> {
 
         Err(DiagnosticError::new(
           format!(
-            "expected either `+`, `-`, `(`, an `Identifier`, or a `Literal` after `{}`",
+            "Expected either `+`, `-`, `(`, an `Identifier`, or a `Literal` after `{}`",
             &sec_last_info.literal
           ),
           sec_last.line(),

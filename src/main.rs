@@ -1,4 +1,5 @@
 mod error;
+mod interpreter;
 mod lexer;
 mod node;
 mod parser;
@@ -6,9 +7,10 @@ mod token;
 mod util;
 
 use error::DiagnosticError;
+use interpreter::Interpreter;
 use lexer::Lexer;
 use parser::Parser;
-use std::{env, fs};
+use std::{env, fs, path::Path};
 use token::{Token, TokenKind};
 use util::token_info;
 
@@ -16,18 +18,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   let mut args = env::args();
 
   // The first argument is usually the executable name
-  args.next();
+  let exec = args.next().unwrap();
 
-  let file_name = args.next();
-  let src = match file_name {
-    Some(ref file) => fs::read_to_string(file)?,
-    None => {
-      println!("expected a file to be passed.");
-      std::process::exit(1)
+  let mut print_lexed_tokens = false;
+  let mut print_ast = false;
+  let mut file_name = None;
+
+  for arg in args {
+    if arg == "--print-ast" || arg == "-a" {
+      print_ast = true;
+    } else if arg == "--print-tokens" || arg == "-t" {
+      print_lexed_tokens = true;
+    } else if arg == "--help" || arg == "-h" {
+      print_help(&exec);
+    } else if file_name.is_none() {
+      file_name = Some(arg);
     }
-  };
+  }
 
-  let file_name = file_name.unwrap();
+  let file_name = file_name.unwrap_or_else(|| {
+    println!("expected a file to be passed.");
+    std::process::exit(1);
+  });
+  let src = fs::read_to_string(&file_name)?;
+
   // Lex the input, handling invalid tokens
   let mut lexer = Lexer::new(&src);
   let tokens = lexer.lex();
@@ -37,15 +51,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     handle_error(&file_name, lex_errors);
   }
 
-  let mut parser = Parser::from_tokens(&src, tokens);
-  let parse_res = parser.parse();
+  if print_lexed_tokens {
+    println!("The lexed tokens of the program are:\n{:#?}", &tokens);
+  }
 
-  match parse_res {
-    Ok(ast) => println!("The AST of the program is:\n{:#?}", ast),
-    Err(errs) => handle_error(&file_name, errs),
+  // Parse the program using the lexed tokens
+  let mut parser = Parser::from_tokens(&src, tokens);
+  let ast = parser
+    .parse()
+    .unwrap_or_else(|err| handle_error(&file_name, err));
+
+  if print_ast {
+    println!("The AST of the program is:\n{:#?}", &ast);
+  }
+
+  // Run the program
+  let mut interpreter = Interpreter::new(&src, ast);
+
+  match interpreter.evaluate() {
+    Ok(()) => {
+      println!("The result of the program is:\n");
+
+      interpreter.dump();
+    }
+    Err(errors) => handle_error(&file_name, errors),
   }
 
   Ok(())
+}
+
+fn print_help(exec_path: &str) -> ! {
+  let path = Path::new(exec_path);
+
+  println!(
+    "An interpreter for a toy language.\n\n\
+USAGE: {} [OPTIONS] <file>\n\nOPTIONS:\n\
+\t--print-tokens, -a\n\t\tPrints the lexed tokens of the source file.\n\n\
+\t--print-ast, -t\n\t\tPrints the AST of the source file.\n\n\
+\t--print-help, -h\n\t\tPrints this message.",
+    path.file_name().unwrap().to_string_lossy()
+  );
+
+  std::process::exit(0)
 }
 
 fn get_lexer_errors(src: &str, tokens: &[Token]) -> Vec<DiagnosticError> {
