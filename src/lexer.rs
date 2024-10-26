@@ -246,9 +246,23 @@ mod tests {
 
   #[test]
   fn invalid_tokens() {
-    let tokens = get_tokens!("____`````><>.,.`,.`");
+    let tokens = get_tokens!("_`><.,.`,.");
 
-    assert_eq!(tokens, vec![TokenKind::Unknown]);
+    assert_eq!(
+      tokens,
+      vec![
+        TokenKind::Unknown,
+        TokenKind::Unknown,
+        TokenKind::Unknown,
+        TokenKind::Unknown,
+        TokenKind::Unknown,
+        TokenKind::Unknown,
+        TokenKind::Unknown,
+        TokenKind::Unknown,
+        TokenKind::Unknown,
+        TokenKind::Unknown,
+      ]
+    );
   }
 
   #[test]

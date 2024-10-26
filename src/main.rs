@@ -9,6 +9,8 @@ use error::DiagnosticError;
 use lexer::Lexer;
 use parser::Parser;
 use std::{env, fs};
+use token::{Token, TokenKind};
+use util::token_info;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
   let mut args = env::args();
@@ -17,8 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   args.next();
 
   let file_name = args.next();
-
-  let string = match file_name {
+  let src = match file_name {
     Some(ref file) => fs::read_to_string(file)?,
     None => {
       println!("expected a file to be passed.");
@@ -27,10 +28,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   };
 
   let file_name = file_name.unwrap();
-  let mut lexer = Lexer::new(&string);
+  // Lex the input, handling invalid tokens
+  let mut lexer = Lexer::new(&src);
   let tokens = lexer.lex();
+  let lex_errors = get_lexer_errors(&src, &tokens);
 
-  let mut parser = Parser::from_tokens(&string, tokens);
+  if !lex_errors.is_empty() {
+    handle_error(&file_name, lex_errors);
+  }
+
+  let mut parser = Parser::from_tokens(&src, tokens);
   let parse_res = parser.parse();
 
   match parse_res {
@@ -39,6 +46,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
   }
 
   Ok(())
+}
+
+fn get_lexer_errors(src: &str, tokens: &[Token]) -> Vec<DiagnosticError> {
+  let mut errors = Vec::new();
+
+  for tok in tokens {
+    if matches!(tok.kind(), TokenKind::Unknown) {
+      let info = token_info(src, tok);
+
+      errors.push(DiagnosticError::new(
+        format!("The token, `{}`, is invalid.", info.literal),
+        info.line,
+        info.column,
+      ))
+    }
+  }
+
+  errors
 }
 
 fn handle_error(file_name: &str, errors: Vec<DiagnosticError>) -> ! {
