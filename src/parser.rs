@@ -229,7 +229,9 @@ impl<'a> Parser<'a> {
 
     let lhs_term = self.parse_term()?;
 
-    parse_expr_inner(self, lhs_term)
+    Ok(Node::Expression(Box::new(parse_expr_inner(
+      self, lhs_term,
+    )?)))
   }
 
   fn parse_term(&mut self) -> Result<Node, DiagnosticError> {

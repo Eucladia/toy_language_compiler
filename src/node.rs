@@ -4,7 +4,7 @@ use std::ops::Range;
 pub enum Node {
   Program(Vec<Node>),
   Assignment(Box<Node>, Box<Node>),
-  Expression(Box<Node>, Operator, Box<Node>),
+  Expression(Box<Node>),
   Term(Box<Node>, Operator, Box<Node>),
   Fact(Box<Node>),
   Identifier(IdentifierNode),
