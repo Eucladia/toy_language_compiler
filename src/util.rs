@@ -1,7 +1,7 @@
 use crate::token::Token;
 use std::ops::Range;
 
-/// Extra information about a [Token]
+/// Extra information about a [Token].
 #[derive(Debug, Clone)]
 pub struct TokenInfo<'a> {
   /// The line that this token is on.
@@ -18,7 +18,7 @@ pub struct TokenInfo<'a> {
 /// This function panics if the token's range isn't in source string.
 pub fn token_info<'b>(src: &'b str, token: &Token) -> TokenInfo<'b> {
   TokenInfo {
-    column: token.range().end + 1 - (linebreak_index(src, token.range()) + 1),
+    column: token.range().end - linebreak_index(src, token.range()),
     line: token.line(),
     literal: src.get(token.range()).unwrap(),
   }
