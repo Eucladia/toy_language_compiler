@@ -1,11 +1,11 @@
-use std::num::{IntErrorKind, ParseIntError};
+use std::num::IntErrorKind;
 
 use crate::{
   error::DiagnosticError,
   lexer::Lexer,
   node::{IdentifierNode, LiteralNode, Node, Operator},
   token::{Token, TokenKind},
-  util::{linebreak_index, token_info, TokenInfo},
+  util::{linebreak_index, token_info},
 };
 
 #[derive(Debug)]
@@ -446,11 +446,6 @@ impl<'a> Parser<'a> {
 }
 
 impl LexerManager {
-  /// Returns the next [Token].
-  pub fn peek_token(&self) -> Option<&Token> {
-    self.tokens.get(self.token_pos + 1)
-  }
-
   /// Returns the current [Token]
   pub fn current_token(&self) -> Option<&Token> {
     self.tokens.get(self.token_pos)
