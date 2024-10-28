@@ -102,6 +102,7 @@ a = b;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Without backtracking, we can't quite figure out how we should interpret this. The parser, since it's top-down without any backtracking, assumes that the programmer meant the latter.
 
 ### Evaluator (Interpreter)
-TODO: Fill this out when done
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;The interpreter recursively traverses the tree, evaluating the node's values with the result of its child nodes. We keep track of variables by storing them in a `HashMap` that maps an identifier to its current value.
+
 
 [specification]: SPECIFICATION.md
