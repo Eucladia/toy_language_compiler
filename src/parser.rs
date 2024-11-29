@@ -109,30 +109,31 @@ impl<'a> Parser<'a> {
       Some(tok) if matches!(tok.kind(), TokenKind::Equal) => {
         self.lexer.advance();
       }
-      Some(other) if !matches!(other.kind(), TokenKind::EndOfFile) => {
-        let curr_info = token_info(self.src, other);
+      Some(next_token) if !matches!(next_token.kind(), TokenKind::EndOfFile) => {
+        let next_info = token_info(self.src, next_token);
 
         errors.push(DiagnosticError::new(
           format!(
             "Expected an `Equal` token, but found `{}` ({}).",
-            curr_info.literal,
-            other.kind()
+            next_info.literal,
+            next_token.kind()
           ),
           ident_token_info.line,
-          // If the identifier token and equal token aren't on the same line, then the column is
-          // the end of the identifier + 1
-          if other.line() == ident_token.line() {
-            ident_token.range().end
+          // If the identifier token and next token are on the same line, then
+          // point to the start of the next token
+          if next_token.line() == ident_token.line() {
+            next_token.range().start + 1 - linebreak_index(self.src, ident_token.range())
           } else {
-            ident_token.range().end + 1
-          } - linebreak_index(self.src, ident_token.range()),
+            ident_token.range().end + 1 - linebreak_index(self.src, ident_token.range())
+          },
         ));
       }
+      // Either no token or we got an `EOF`
       _ => {
         errors.push(DiagnosticError::new(
           "Expected an `Equal` token.".to_string(),
           ident_token_info.line,
-          ident_token.range().end - linebreak_index(self.src, ident_token.range()),
+          ident_token.range().end + 1 - linebreak_index(self.src, ident_token.range()),
         ));
       }
     }
