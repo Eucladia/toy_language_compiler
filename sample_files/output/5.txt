@@ -1,0 +1,6 @@
+The result of the program is:
+
+c => -3
+d => -5
+a => 1
+b => 2

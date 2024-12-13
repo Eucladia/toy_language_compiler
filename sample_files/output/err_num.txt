@@ -1,0 +1,7 @@
+The program has 2 error(s):
+
+ 1) sample_files/err_num.txt:2:8
+	The integer, `00001`, is invalid. literals must be either 0 or non-zero digits.
+
+ 2) sample_files/err_num.txt:3:6
+	The integer,`328173239183721389728319372172389123`, is invalid. integers must be in the range [-9223372036854775808, 9223372036854775807].

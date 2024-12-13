@@ -1,0 +1,19 @@
+The program has 6 error(s):
+
+ 1) sample_files/err_test.txt:1:6
+	Expected a `Semicolon` after `5`, but found `=` (Equal).
+
+ 2) sample_files/err_test.txt:2:1
+	Expected an `Identifier`, but found `=` (Equal)
+
+ 3) sample_files/err_test.txt:3:1
+	Expected an `Identifier`, but found `7` (Literal)
+
+ 4) sample_files/err_test.txt:3:1
+	Expected an `Equal` token, but found `7` (Literal).
+
+ 5) sample_files/err_test.txt:5:6
+	Expected a `Semicolon` after `d`, but found `e` (Identifier).
+
+ 6) sample_files/err_test.txt:6:6
+	Expected a `Semicolon` after `9`, but found `` (EndOfFile).

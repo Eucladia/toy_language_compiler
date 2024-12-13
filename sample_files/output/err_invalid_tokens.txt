@@ -1,0 +1,25 @@
+The program has 8 error(s):
+
+ 1) sample_files/err_invalid_tokens.txt:1:5
+	The token, `!`, is invalid.
+
+ 2) sample_files/err_invalid_tokens.txt:1:6
+	The token, `$`, is invalid.
+
+ 3) sample_files/err_invalid_tokens.txt:1:7
+	The token, `@`, is invalid.
+
+ 4) sample_files/err_invalid_tokens.txt:1:8
+	The token, `%`, is invalid.
+
+ 5) sample_files/err_invalid_tokens.txt:1:9
+	The token, `^`, is invalid.
+
+ 6) sample_files/err_invalid_tokens.txt:1:10
+	The token, `!`, is invalid.
+
+ 7) sample_files/err_invalid_tokens.txt:1:11
+	The token, `&`, is invalid.
+
+ 8) sample_files/err_invalid_tokens.txt:1:12
+	The token, `@`, is invalid.

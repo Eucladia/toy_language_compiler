@@ -1,0 +1,4 @@
+The program has 1 error(s):
+
+ 1) sample_files/3.txt:1:6
+	Expected a `Semicolon` after `0`, but found `y` (Identifier).

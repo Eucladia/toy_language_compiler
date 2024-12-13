@@ -1,0 +1,10 @@
+The program has 3 error(s):
+
+ 1) sample_files/err_expr.txt:3:1
+	Expected either `+`, `-`, `(`, an `Identifier`, or a `Literal`, but found `;` (Semicolon)
+
+ 2) sample_files/err_expr.txt:4:7
+	Expected either `+`, `-`, `(`, an `Identifier`, or a `Literal`, but found `;` (Semicolon)
+
+ 3) sample_files/err_expr.txt:5:8
+	Expected a `Semicolon` after `6`, but found `` (EndOfFile).

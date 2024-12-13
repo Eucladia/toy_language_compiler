@@ -1,0 +1,7 @@
+The program has 2 error(s):
+
+ 1) sample_files/err_uninitialized.txt:1:5
+	The identifier `b`, has not yet been initialized.
+
+ 2) sample_files/err_uninitialized.txt:2:5
+	The identifier `c`, has not yet been initialized.

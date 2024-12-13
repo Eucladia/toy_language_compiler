@@ -1,0 +1,4 @@
+The program has 1 error(s):
+
+ 1) sample_files/1.txt:1:5
+	The integer, `001`, is invalid. literals must be either 0 or non-zero digits.

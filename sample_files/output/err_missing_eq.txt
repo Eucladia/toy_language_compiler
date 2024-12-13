@@ -1,0 +1,16 @@
+The program has 5 error(s):
+
+ 1) sample_files/err_missing_eq.txt:1:4
+	Expected an `Equal` token, but found `556` (Literal).
+
+ 2) sample_files/err_missing_eq.txt:3:9
+	Expected an `Equal` token, but found `789` (Literal).
+
+ 3) sample_files/err_missing_eq.txt:4:5
+	Expected an `Equal` token.
+
+ 4) sample_files/err_missing_eq.txt:4:5
+	Expected either `+`, `-`, `(`, an `Identifier`, or a `Literal`, but found `` (EndOfFile)
+
+ 5) sample_files/err_missing_eq.txt:4:5
+	Expected a `Semicolon` after `bizz`, but found `` (EndOfFile).
