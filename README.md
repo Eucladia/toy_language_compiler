@@ -11,6 +11,8 @@
 ## Running
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;You can run this via `cargo build --release && target/release/toy_language/ <file>` or simply `cargo run --release <file>`.
 
+Sample files and output are available in `sample_files/`
+
 <h2 align=center> Design Choices </h2>
 
 ### Lexer
