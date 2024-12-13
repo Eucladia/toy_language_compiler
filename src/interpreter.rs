@@ -9,7 +9,7 @@ use std::collections::HashMap;
 pub struct Interpreter<'a> {
   src: &'a str,
   root: Node,
-  variables: HashMap<String, isize>,
+  variables: HashMap<&'a str, isize>,
 }
 
 impl<'a> Interpreter<'a> {
@@ -49,10 +49,10 @@ impl<'a> Interpreter<'a> {
   }
 }
 
-fn evaluate_node(
-  src: &str,
+fn evaluate_node<'a>(
+  src: &'a str,
   node: &Node,
-  variables: &mut HashMap<String, isize>,
+  variables: &mut HashMap<&'a str, isize>,
   errors: &mut Vec<DiagnosticError>,
 ) -> isize {
   match node {
@@ -69,7 +69,7 @@ fn evaluate_node(
       if let Node::Identifier(ident_node) = &**var_node {
         let rhs = evaluate_node(src, expr, variables, errors);
 
-        variables.insert(ident_node.literal.clone(), rhs);
+        variables.insert(src.get(ident_node.range.clone()).unwrap(), rhs);
       }
 
       // Doesn't really matter what number return in this case
@@ -95,7 +95,7 @@ fn evaluate_node(
       Operator::Multiply => unreachable!("`* Fact` should be unreachable."),
     },
     Node::Identifier(var_node) => {
-      match variables.get(&var_node.literal).copied() {
+      match variables.get(var_node.literal.as_str()).copied() {
         Some(num) => num,
         None => {
           let node_range = var_node.range.clone();

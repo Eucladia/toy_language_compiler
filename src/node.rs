@@ -34,13 +34,10 @@ pub enum Operator {
 pub struct IdentifierNode {
   /// The source string of this node.
   pub literal: String,
+  // Store the range and line to make error diagnostics easier
   /// The range of this node in the source file.
-  ///
-  /// Store the range and line to make error diagnostics easier
   pub range: Range<usize>,
   /// The line of this node in the souce file.
-  ///
-  /// Store the range and line to make error diagnostics easier
   pub line: usize,
 }
 
